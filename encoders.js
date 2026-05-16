@@ -134,17 +134,17 @@ const LineEncoders = (() => {
     }
 
     /**
-     * Manchester (IEEE 802.3): 1→High-to-Low mid-bit, 0→Low-to-High mid-bit
+     * Manchester (IEEE 802.3): 0→High-to-Low mid-bit, 1→Low-to-High mid-bit
      */
     function manchester(bits) {
         const levels = [];
         for (const b of bits) {
             if (b === 1) {
-                levels.push(1);   // first half high
-                levels.push(-1);  // second half low
-            } else {
                 levels.push(-1);  // first half low
                 levels.push(1);   // second half high
+            } else {
+                levels.push(1);   // first half high
+                levels.push(-1);  // second half low
             }
         }
         return { levels, transitions: 'step', yRange: [-1.3, 1.3] };
@@ -158,18 +158,20 @@ const LineEncoders = (() => {
      */
     function differentialManchester(bits) {
         const levels = [];
-        let current = 1; // start with positive
+        let lastLevel = -1; // ending voltage of the "previous" bit
         for (const b of bits) {
+            let startLevel;
             if (b === 0) {
-                // Transition at start
-                current = -current;
+                // Bit 0: transition at start → invert previous ending level
+                startLevel = -lastLevel;
+            } else {
+                // Bit 1: no transition at start → keep previous ending level
+                startLevel = lastLevel;
             }
-            // No transition at start for 1
-            // First half = current
-            levels.push(current);
-            // Mid-bit transition always
-            current = -current;
-            levels.push(current);
+            const midLevel = -startLevel; // mandatory mid-bit transition
+            levels.push(startLevel);
+            levels.push(midLevel);
+            lastLevel = midLevel; // store for next bit
         }
         return { levels, transitions: 'step', yRange: [-1.3, 1.3] };
     }
@@ -288,7 +290,7 @@ const LineEncoders = (() => {
             name: 'Manchester',
             category: 'Biphase',
             color: '#38bdf8',
-            description: 'IEEE 802.3: Binary 1 → high-to-low transition at mid-bit. Binary 0 → low-to-high transition at mid-bit.',
+            description: 'IEEE 802.3: Binary 1 → low-to-high transition at mid-bit. Binary 0 → high-to-low transition at mid-bit.',
             encode: manchester
         },
         {
